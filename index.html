@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAI y el Problema del Milenio · Navier–Stokes</title>
+  <meta name="description" content="Investigación sobre el anuncio de OpenAI de haber resuelto el problema de existencia y suavidad de las ecuaciones de Navier-Stokes, uno de los Problemas del Milenio." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --bg-elevated: #121820;
+      --bg-card: #161e28;
+      --border: #243041;
+      --text: #e6edf5;
+      --text-muted: #8b9bb0;
+      --accent: #4fc3f7;
+      --accent-soft: rgba(79, 195, 247, 0.12);
+      --accent-2: #81c784;
+      --warning: #ffb74d;
+      --danger: #e57373;
+      --radius: 12px;
+      --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+      --font-serif: "IBM Plex Serif", Georgia, serif;
+      --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 17px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fondo sutil de grid científico */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(79, 195, 247, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79, 195, 247, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+
+    /* Header */
+    header {
+      padding: 3.5rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid rgba(79, 195, 247, 0.25);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+
+    .badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.85rem, 4.5vw, 2.55rem);
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+    }
+
+    .lead {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 620px;
+      line-height: 1.7;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.75rem;
+      margin-top: 1.75rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* Navegación interna */
+    nav.toc {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    nav.toc h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+      font-weight: 600;
+    }
+
+    nav.toc ol {
+      list-style: none;
+      counter-reset: toc;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    nav.toc li {
+      counter-increment: toc;
+    }
+
+    nav.toc a {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: flex;
+      gap: 0.6rem;
+      padding: 0.25rem 0;
+      transition: color 0.15s;
+    }
+
+    nav.toc a:hover { color: var(--accent); }
+
+    nav.toc a::before {
+      content: counter(toc, decimal-leading-zero);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+      opacity: 0.8;
+      min-width: 1.6rem;
+    }
+
+    /* Secciones */
+    section {
+      margin-bottom: 3.5rem;
+      scroll-margin-top: 1.5rem;
+    }
+
+    section h2 {
+      font-family: var(--font-serif);
+      font-size: 1.55rem;
+      font-weight: 600;
+      margin-bottom: 1.15rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+    }
+
+    section h2 .num {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    section h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 1.75rem 0 0.65rem;
+      color: var(--text);
+    }
+
+    p { margin-bottom: 1rem; color: var(--text); }
+
+    p.muted { color: var(--text-muted); }
+
+    ul, ol {
+      margin: 0 0 1.25rem 1.25rem;
+    }
+
+    li { margin-bottom: 0.45rem; }
+
+    strong { font-weight: 600; color: #fff; }
+
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    a:hover { color: #81d4fa; }
+
+    /* Cards / callouts */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.35rem 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .card.highlight {
+      border-color: rgba(79, 195, 247, 0.35);
+      background: linear-gradient(145deg, rgba(79, 195, 247, 0.06), var(--bg-card));
+    }
+
+    .card.warn {
+      border-color: rgba(255, 183, 77, 0.35);
+      background: linear-gradient(145deg, rgba(255, 183, 77, 0.05), var(--bg-card));
+    }
+
+    .card h4 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+      font-weight: 600;
+    }
+
+    .card.warn h4 { color: var(--warning); }
+
+    /* Stats grid */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.85rem;
+      margin: 1.5rem 0;
+    }
+
+    .stat {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      text-align: center;
+    }
+
+    .stat .value {
+      font-family: var(--font-mono);
+      font-size: 1.45rem;
+      font-weight: 500;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+
+    .stat .label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+      line-height: 1.35;
+    }
+
+    /* Equation box */
+    .eq {
+      font-family: var(--font-mono);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      overflow-x: auto;
+      font-size: 0.92rem;
+      text-align: center;
+      color: #b3e5fc;
+      letter-spacing: 0.02em;
+    }
+
+    /* Timeline */
+    .timeline {
+      border-left: 2px solid var(--border);
+      margin: 1.5rem 0 1.5rem 0.5rem;
+      padding-left: 1.4rem;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 1.35rem;
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -1.65rem;
+      top: 0.45rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .timeline-item time {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    footer p { margin-bottom: 0.5rem; color: var(--text-muted); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      header { padding-top: 2.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="badge">Investigación · Matemáticas &amp; IA</div>
+      <h1>OpenAI y el Problema del Milenio: Navier–Stokes</h1>
+      <p class="lead">
+        El 8 de septiembre de 2026, OpenAI anunció que un sistema interno de inteligencia artificial había producido una demostración de que las ecuaciones de Navier–Stokes pueden desarrollar singularidades en tiempo finito. Aquí desglosamos qué significa, cómo se logró y el contexto histórico.
+      </p>
+      <div class="meta">
+        <span>📅 Anuncio: 8 sep 2026</span>
+        <span>🧮 Problema: Navier–Stokes (existencia y suavidad)</span>
+        <span>🏛️ Clay Mathematics Institute</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="Índice">
+      <h2>Contenido</h2>
+      <ol>
+        <li><a href="#noticia">La noticia: qué afirmó OpenAI</a></li>
+        <li><a href="#problema">Qué es el problema de Navier–Stokes</a></li>
+        <li><a href="#milenio">Los Problemas del Milenio: quién y por qué</a></li>
+        <li><a href="#ia">Cómo lo resolvió la IA</a></li>
+        <li><a href="#resultado">El resultado y su alcance</a></li>
+        <li><a href="#contexto">Contexto, controversia y estado actual</a></li>
+        <li><a href="#curiosidades">Secciones curiosas</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1 -->
+    <section id="noticia">
+      <h2><span class="num">01</span> La noticia: qué afirmó OpenAI</h2>
+      <p>
+        OpenAI publicó el 8 de septiembre de 2026 un escrito técnico y una formalización en el sistema de demostración interactiva <strong>Lean</strong> en el que afirma haber resuelto el <em>problema de existencia y suavidad de las ecuaciones de Navier–Stokes</em>, uno de los siete <strong>Problemas del Milenio</strong> planteados por el Clay Mathematics Institute en el año 2000.
+      </p>
+      <p>
+        Según la compañía, un modelo interno (más capaz que GPT-6 Astra, aún no disponible al público) coordinó grupos de agentes autónomos que, en aproximadamente <strong>88 horas</strong>, produjeron una demostración analítica de que un fluido inicialmente suave, en reposo y con una fuerza externa suave, puede desarrollar una singularidad (velocidades que crecen sin cota) en tiempo finito, manteniendo la energía finita.
+      </p>
+      <div class="card highlight">
+        <h4>Declaración clave de OpenAI</h4>
+        <p style="margin:0">
+          «This resolves the Navier–Stokes Millennium Prize problem by establishing statement “C” (and also “D”) in the official Millennium Prize formulation.»
+        </p>
+      </div>
+      <p>
+        OpenAI ha declarado explícitamente que <strong>no tiene intención de reclamar el premio de 1 millón de dólares</strong>. El objetivo declarado es mostrar el ritmo de avance de sus sistemas y poner el resultado a disposición de la comunidad científica.
+      </p>
+    </section>
+
+    <!-- 2 -->
+    <section id="problema">
+      <h2><span class="num">02</span> Qué es el problema de Navier–Stokes</h2>
+      <p>
+        Las <strong>ecuaciones de Navier–Stokes</strong> describen el movimiento de fluidos viscosos (agua, aire, sangre, etc.). Se basan en la segunda ley de Newton aplicada a un medio continuo: relacionan la aceleración del fluido con gradientes de presión, transferencia de momento y viscosidad.
+      </p>
+      <div class="eq">
+        ∂ₜu + (u · ∇)u = −∇p + ν Δu &nbsp;&nbsp;,&nbsp;&nbsp; ∇ · u = 0
+      </div>
+      <p>
+        Formulado de manera informal, el problema del Milenio pregunta:
+      </p>
+      <ul>
+        <li>Si se parte de un campo de velocidades <strong>inicialmente suave</strong> (sin discontinuidades) y con decaimiento adecuado en el espacio tridimensional,</li>
+        <li>¿existen siempre soluciones que permanecen <strong>suaves para todo tiempo futuro</strong>?</li>
+        <li>O, por el contrario, ¿puede el propio movimiento del fluido generar una <strong>singularidad</strong> (velocidades que se hacen infinitas) en un tiempo finito?</li>
+      </ul>
+      <p>
+        Una singularidad marcaría un punto en el que el modelo de medio continuo deja de ser válido y habría que pasar a describir el comportamiento a escala molecular. El problema lleva abierto, en esencia, desde los trabajos de Jean Leray en los años 1930, y fue formalizado oficialmente por Charles Fefferman para el Clay Institute.
+      </p>
+      <div class="card">
+        <h4>Por qué importa</h4>
+        <p style="margin:0">
+          Las ecuaciones se usan en diseño de aviones, predicción meteorológica, flujo sanguíneo y turbulencia. Entender si (y cuándo) “rompen” tiene consecuencias teóricas profundas para la física matemática y para la fiabilidad de las simulaciones numéricas en regímenes extremos.
+        </p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="milenio">
+      <h2><span class="num">03</span> Los Problemas del Milenio: quién y por qué</h2>
+      <p>
+        En el año <strong>2000</strong>, el <strong>Clay Mathematics Institute</strong> (CMI), fundado en 1998 por el empresario estadounidense <strong>Landon T. Clay</strong>, anunció siete problemas clásicos de matemáticas que llevaban décadas (o más) sin resolverse. Cada uno lleva asociado un premio de <strong>1 millón de dólares</strong>.
+      </p>
+      <p>
+        El anuncio se hizo el 24 de mayo de 2000 en el Collège de France (París). El consejo científico fundador del CMI —que incluía a figuras como Alain Connes, Arthur Jaffe, Andrew Wiles y Edward Witten— seleccionó los problemas tras consultar a expertos mundiales. El objetivo no era inventar retos nuevos (como había hecho Hilbert en 1900), sino:
+      </p>
+      <ul>
+        <li>Registrar algunas de las preguntas más difíciles a las que se enfrentaban los matemáticos al cambio de milenio.</li>
+        <li>Hacer visible al público general que la frontera de las matemáticas sigue abierta y llena de problemas importantes.</li>
+        <li>Reconocer logros de magnitud histórica y estimular el trabajo hacia las cuestiones más profundas.</li>
+      </ul>
+      <p>
+        Los siete problemas son:
+      </p>
+      <ol>
+        <li>Hipótesis de Riemann</li>
+        <li>Conjetura de Birch y Swinnerton-Dyer</li>
+        <li>Conjetura de Hodge</li>
+        <li>Existencia y suavidad de Navier–Stokes</li>
+        <li>P versus NP</li>
+        <li>Existencia de Yang–Mills y gap de masa</li>
+        <li>Conjetura de Poincaré (resuelta por Grigori Perelman; único problema oficialmente resuelto hasta 2026)</li>
+      </ol>
+      <p class="muted">
+        La conjetura de Poincaré fue demostrada por Perelman a principios de los 2000. El Clay Institute le ofreció el premio en 2010; él lo rechazó.
+      </p>
+    </section>
+
+    <!-- 4 -->
+    <section id="ia">
+      <h2><span class="num">04</span> Cómo lo resolvió la IA</h2>
+      <p>
+        OpenAI describe un proceso basado en un <strong>sistema multiagente</strong> impulsado por un modelo interno de nueva generación:
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="value">~10 000</div>
+          <div class="label">Agentes concurrentes en el grupo que resolvió Navier–Stokes</div>
+        </div>
+        <div class="stat">
+          <div class="value">88 h</div>
+          <div class="label">Tiempo hasta la resolución (1–5 sep 2026)</div>
+        </div>
+        <div class="stat">
+          <div class="value">+17 h</div>
+          <div class="label">Formalización y verificación en Lean (GPT-6 Astra)</div>
+        </div>
+        <div class="stat">
+          <div class="value">~130 B</div>
+          <div class="label">Tokens de salida solo en Navier–Stokes</div>
+        </div>
+      </div>
+      <h3>Cronología del esfuerzo</h3>
+      <div class="timeline">
+        <div class="timeline-item">
+          <time>28 ago 2026</time>
+          Inicio del entrenamiento de un nuevo modelo interno con rendimiento excepcional en benchmarks matemáticos.
+        </div>
+        <div class="timeline-item">
+          <time>1 sep 2026</time>
+          Tras oír rumores de que dos Problemas del Milenio podrían haberse resuelto, OpenAI lanza agentes sobre todos los problemas abiertos del Milenio (y variantes).
+        </div>
+        <div class="timeline-item">
+          <time>~50 h</time>
+          Un grupo de ~100 agentes resuelve una versión del problema de regularidad de las ecuaciones de Euler (sin viscosidad).
+        </div>
+        <div class="timeline-item">
+          <time>5 sep 2026</time>
+          El grupo dedicado a Navier–Stokes llega a la demostración de singularidad (enunciados C y D).
+        </div>
+        <div class="timeline-item">
+          <time>+17 h</time>
+          Formalización completa en Lean y verificación automática.
+        </div>
+        <div class="timeline-item">
+          <time>8 sep 2026</time>
+          Publicación del write-up, el paper y el repositorio con la prueba formalizada.
+        </div>
+      </div>
+      <p>
+        Los agentes tenían acceso a herramientas (código, versiones cacheadas de internet), se organizaban en grupos que se comunicaban internamente y recibían prompts con distintas variantes del problema (A/B orientadas a existencia global, C/D orientadas a contraejemplos/singularidades). Se cruzaron ideas entre grupos mediante consolidación con Codex.
+      </p>
+      <div class="card">
+        <h4>Coste estimado</h4>
+        <p style="margin:0">
+          OpenAI ha indicado que un esfuerzo similar, a precios de sus modelos más avanzados, costaría del orden de <strong>10–15 millones de dólares</strong> en cómputo. No se ha reclamado el premio del Clay Institute.
+        </p>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="resultado">
+      <h2><span class="num">05</span> El resultado y su alcance</h2>
+      <p>
+        La demostración de OpenAI establece que existe un fluido inicialmente en reposo, con una fuerza externa suave, cuya dinámica bajo las ecuaciones de Navier–Stokes desarrolla una <strong>singularidad en tiempo finito</strong>, manteniendo la energía finita en todo el proceso. Esto corresponde a los enunciados <strong>C y D</strong> de la formulación oficial del premio.
+      </p>
+      <p>
+        Intuitivamente, la solución describe un vórtice que se enrolla hacia dentro y se estira (como “espagueti”), concentrando la velocidad de forma que crece sin cota mientras la energía permanece controlada. El equilibrio delicado entre los términos de las ecuaciones (aceleración, presión, advección, viscosidad) permite que la fuerza externa se mantenga suave.
+      </p>
+      <div class="card warn">
+        <h4>Matiz importante</h4>
+        <p style="margin:0">
+          Algunos expertos señalan que los enunciados con fuerza externa (forced) no resuelven necesariamente la versión “clásica” más fuerte del problema (sin fuerza, o con fuerzas más restringidas). El Clay Institute ha reaccionado con cautela: ha hablado de que el problema “aparentemente ha sido resuelto”, pero la evaluación formal y la asignación de crédito suelen tomar meses. La prueba está formalizada en Lean, lo que facilita la verificación mecánica independiente.
+        </p>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="contexto">
+      <h2><span class="num">06</span> Contexto, controversia y estado actual</h2>
+      <p>
+        El anuncio no llegó en el vacío. Días antes, el matemático <strong>Tristan Buckmaster</strong> (NYU) y <strong>Levent Alpöge</strong> (entonces en Anthropic) habían avanzado de forma notable en problemas relacionados (en particular, blow-up forzado para ecuaciones de Euler y otras), apoyándose en métodos previos de los matemáticos españoles <strong>Diego Córdoba</strong> y <strong>Luis Martínez-Zoroa</strong>, y usando también modelos de lenguaje (incluidos de OpenAI).
+      </p>
+      <p>
+        Surgió una disputa de prioridad y de ética: Buckmaster expresó preocupaciones sobre el ritmo y la posible influencia de trabajo no público. OpenAI respondió que sus investigadores y agentes no habían visto el trabajo de Buckmaster/Alpöge antes de su publicación pública, que no se accedió a datos de usuario específicos para resolver el problema, y que reconocen la prioridad del trabajo de la pareja en Euler forzado. También actualizaron su nota para detallar una investigación interna sobre posibles influencias de datos desidentificados.
+      </p>
+      <p>
+        A fecha de 11 de septiembre de 2026:
+      </p>
+      <ul>
+        <li>OpenAI ha publicado write-up, paper y formalización Lean.</li>
+        <li>El Clay Mathematics Institute ha emitido un comunicado reconociendo la excitación de la comunidad y la aparente resolución, sin certificar aún el premio.</li>
+        <li>La verificación independiente por matemáticos humanos y la revisión formal del Clay Institute están en curso (pueden llevar meses).</li>
+        <li>OpenAI no reclamará el premio de 1 M$.</li>
+      </ul>
+    </section>
+
+    <!-- 7 -->
+    <section id="curiosidades">
+      <h2><span class="num">07</span> Secciones curiosas</h2>
+
+      <h3>La IA que “colabora” a escala industrial</h3>
+      <p>
+        No se trata de un solo chat que “piensa” la prueba. Se usaron miles de agentes que exploraban en paralelo, se comunicaban dentro de grupos, recibían variantes del enunciado y se alimentaban de ideas cruzadas. Es un ejemplo extremo de investigación asistida por sistemas multiagente a escala de cómputo de decenas de millones de dólares.
+      </p>
+
+      <h3>Lean como “árbitro”</h3>
+      <p>
+        Formalizar la demostración en Lean permite que un ordenador compruebe cada paso lógico. Eso reduce (aunque no elimina) la dependencia de la confianza ciega en un paper de cientos de páginas y acelera la revisión por la comunidad.
+      </p>
+
+      <h3>De Euler a Navier–Stokes</h3>
+      <p>
+        Las ecuaciones de Euler son el límite sin viscosidad de Navier–Stokes. Resolver primero un blow-up en Euler (incluso en versiones sin fuerza externa, según OpenAI) dio la pista y las herramientas conceptuales para atacar el caso con viscosidad. Este tipo de “escalado” de problemas más simples a más difíciles es clásico en análisis de ecuaciones en derivadas parciales.
+      </p>
+
+      <h3>El único precedente oficial</h3>
+      <p>
+        Hasta 2026, el único Problema del Milenio oficialmente resuelto era la conjetura de Poincaré (Perelman). Si la comunidad y el Clay Institute aceptan el resultado de OpenAI (o una versión refinada), sería el segundo, y el primero atribuido de forma central a un sistema de inteligencia artificial.
+      </p>
+
+      <h3>Por qué OpenAI no reclama el millón</h3>
+      <p>
+        La compañía enmarca el resultado como evidencia del progreso de sus modelos y de su capacidad para acelerar la investigación científica. Reclamar el premio podría complicar la recepción por parte de la comunidad matemática y diluir el mensaje de “herramienta al servicio de la ciencia”. Además, el Clay Institute tiene reglas estrictas sobre autoría, publicación y verificación.
+      </p>
+    </section>
+
+    <footer>
+      <p>
+        Página informativa elaborada a partir de fuentes públicas (OpenAI, Clay Mathematics Institute, cobertura de Quanta, Nature, BBC, WSJ, New Scientist y otras) a 11 de septiembre de 2026.
+      </p>
+      <p>
+        El resultado de OpenAI está pendiente de verificación independiente completa y de eventual reconocimiento oficial por el Clay Mathematics Institute. Esta página no constituye una evaluación matemática del paper.
+      </p>
+      <p style="margin-top: 1.25rem; opacity: 0.7;">
+        Diseño científico · index.html · 2026
+      </p>
+    </footer>
+  </div>
+</body>
+</html>
